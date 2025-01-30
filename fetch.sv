@@ -6,8 +6,9 @@ module fetch_module #(
     input rst_n,                      // Active low reset
     input read_mem,                   // Trigger to start reading from memory
     input [ADDR_WIDTH-1:0] address,   // Address for the memory read
-    output reg [DATA_WIDTH-1:0] fifo_data, // Data to output for FIFO
-    output fetch_done                 // Indicates fetch operation completion
+    output reg [63:0] fifo_data, // Data to output for FIFO
+    output fetch_done,                // Indicates fetch operation completion
+    output waiting
 );
 
     // Memory instantiation (assuming the use of your memory module in memory.v)
@@ -18,7 +19,7 @@ module fetch_module #(
         .read(read_mem),              // Read signal to trigger memory read
         .readdata(fifo_data),         // Output data fetched from memory
         .readdatavalid(fetch_done),   // Signal when data is valid
-        .waitrequest()                // Waitrequest (not used in this example)
+        .waitrequest(waiting)                // Waitrequest (not used in this example)
     );
 
 endmodule

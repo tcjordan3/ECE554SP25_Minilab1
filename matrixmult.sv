@@ -1,14 +1,15 @@
 `default_nettype none 
+`timescale 1 ns / 1 ns
 
 module matrixmult(
-    input logic clk,
-    input logic rst_n,
-    input logic Clr,
+    input wire clk,
+    input wire rst_n,
+    input wire Clr,
 	output logic [23:0] Cout [7:0]
 );
 	///////////////////////////////////////////////
 	//
-	//
+	//USE vsim work.minilab_tb -L C:/intelFPGA_lite/23.1std/questa_fse/intel/verilog/altera_mf -voptargs="+acc" !!!!!!!
 	//
 	///////////////////////////////////////////
 	
@@ -29,7 +30,7 @@ module matrixmult(
     reg [3:0] address;
     generate
         for (i = 0; i < 8; ++i) begin
-            mac(.clk(clk), .rst_n(rst_n), .En(En[i]), .Clr(Clr), .Ain(Ain[i]), .Bin(Bin[i]), .Cout(Cout[i]));
+            MAC imac(.clk(clk), .rst_n(rst_n), .En(En[i]), .Clr(Clr), .Ain(Ain[i]), .Bin(Bin[i]), .Cout(Cout[i]));
         end
     endgenerate
 
@@ -37,14 +38,14 @@ module matrixmult(
     genvar k;
     generate
         for (k = 1; k < 9; ++k) begin
-            fifo(.clk(clk), .rst_n(rst_n), .rden(En[k - 1]), .wren(wren[k]), .i_data(Afill[k]), .o_data(Ain[k - 1]), .full(full[k]), .empty(empty[k]));
+            FIFO ififo(.clk(clk), .rst_n(rst_n), .rden(En[k - 1]), .wren(wren[k]), .i_data(Afill[k]), .o_data(Ain[k - 1]), .full(full[k]), .empty(empty[k]));
         end
     endgenerate
 
-    fetch iFETCH(.clk(clk), .rst_n(rst_n), .read_mem(read_mem), .address(adress), .fifo_data(fetchout), .fetch_done(fetch_done), .waiting(waiting));
+    fetch_module iFETCH(.clk(clk), .rst_n(rst_n), .read_mem(read_mem), .address(address), .fifo_data(fetchout), .fetch_done(fetch_done), .waiting(waiting));
 
     // fifo for B
-    fifo(.clk(clk), .rst_n(rst_n), .rden(En[0]), .wren(wren[0]), .i_data(Afill[0]), .o_data(Bin[0]), .full(full[0]), .empty(empty[0]));
+    FIFO fifob(.clk(clk), .rst_n(rst_n), .rden(En[0]), .wren(wren[0]), .i_data(Afill[0]), .o_data(Bin[0]), .full(full[0]), .empty(empty[0]));
 
     // always_ff @(posedge clk, negedge rst_n) begin
     //     if(~rst_n) begin
@@ -109,6 +110,7 @@ module matrixmult(
     always_ff @(posedge clk, negedge rst_n) begin
         if(~rst_n) begin
             En[0] <= 1'b0;
+	    count <= 4'h0;
             // Bin[0] <= 8'h00;
             // Ain[0] <= 8'h00;
         end
@@ -125,16 +127,16 @@ module matrixmult(
 
     genvar j;
     generate
-        for (j = 0; j < 8; ++j) begin
+        for (j = 1; j < 8; ++j) begin
             always_ff @(posedge clk, negedge rst_n) begin
                 if(~rst_n) begin
                     En[j] <= 1'b0;
-                    // Bin[j] <= 8'h00;
+                    Bin[j] <= 8'h00;
                     // Ain[j] <= 8'h00;
                 end
                 else begin
                     En[j] <= En[j-1];
-                    // Bin[j] <= Bin[j-1];
+                    Bin[j] <= Bin[j-1];
                     // Ain[j] <= Amatrix[j][count - j];
                 end
             end
@@ -165,16 +167,18 @@ module matrixmult(
             read_mem = 0;
         
             case(state)
-                IDLE: 
+                IDLE: begin
                     nxt_state = GET;
                     read_mem = 1'b1;
                     statecount = '0;
                     address = '0;
-                GET:
+                end
+                GET: begin
                     read_mem = 1'b0;
                     if (fetch_done)
                         nxt_state = FILL;
-                FILL:
+                end
+                FILL: begin
                     if(full[8])
                         nxt_state = DONE;
                     else if(full[statecount]) begin
@@ -187,7 +191,10 @@ module matrixmult(
                     else
                         wren[statecount] = 1'b1;
                         Afill[statecount] = fetchout;
-                DONE:
+                end
+                DONE: begin
+                    nxt_state = DONE;
+                end
             endcase
         end
 

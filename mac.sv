@@ -14,7 +14,9 @@ module MAC #(
     state_t state, nxt_state;
 
     reg [DATA_WIDTH*3-1:0] CoutReg;
+    reg [DATA_WIDTH*3-1:0] mult;
     logic acc;
+    reg acc_flopped;
 
     always_ff @(posedge clk, negedge rst_n) begin
         if (!rst_n) begin
@@ -46,12 +48,25 @@ module MAC #(
     end
 
     always_ff @(posedge clk, negedge rst_n) begin
+	if(!rst_n) begin
+	   acc_flopped <= 0;
+	end else if (Clr) begin
+	    acc_flopped <= 0;
+	end else begin
+	    acc_flopped <= acc;
+	end
+    end
+
+    always_ff @(posedge clk, negedge rst_n) begin
 	if (!rst_n) begin
 	    CoutReg <= '0;
+	    mult <= '0;
 	end else if (Clr) begin
 	    CoutReg <= '0;
-	end else if (acc) begin
-	    CoutReg <= CoutReg + Ain*Bin;
+	    mult <= '0;
+	end else if (acc || acc_flopped) begin
+	    mult <=  Ain*Bin;
+	    CoutReg <= CoutReg + mult;
 	end
     end
 
